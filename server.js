@@ -31,7 +31,7 @@ app.get("/models", async (req, res) => {
     page = 1,
     limit = 25,
     search = "",
-    sort = "asc"
+    sort = "desc" // mặc định hot nhất trước
   } = req.query;
 
   page = parseInt(page);
@@ -42,29 +42,36 @@ app.get("/models", async (req, res) => {
   let where = "";
   let params = [];
 
-  // SEARCH
   if (search) {
-    where = "WHERE name LIKE ?";
+    where = "WHERE m.name LIKE ?";
     params.push(`%${search}%`);
   }
 
-  const order = sort === "desc" ? "DESC" : "ASC";
+  const order = sort === "asc" ? "ASC" : "DESC";
 
   try {
-    // total
+    // ===== TOTAL =====
     const [countRows] = await pool.query(
-      `SELECT COUNT(*) as total FROM models ${where}`,
+      `SELECT COUNT(*) as total FROM models m ${where}`,
       params
     );
 
     const total = countRows[0].total;
 
-    // data
+    // ===== DATA =====
     const [rows] = await pool.query(
-      `SELECT * FROM models 
-       ${where}
-       ORDER BY name ${order}
-       LIMIT ? OFFSET ?`,
+      `
+      SELECT 
+        m.*,
+        COUNT(md.id) as totalVideos
+      FROM models m
+      LEFT JOIN medias md 
+        ON md.model = m.name
+      ${where}
+      GROUP BY m.id
+      ORDER BY totalVideos ${order}, m.name ASC
+      LIMIT ? OFFSET ?
+      `,
       [...params, limit, offset]
     );
 
