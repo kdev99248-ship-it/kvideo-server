@@ -1,0 +1,265 @@
+openapi: 3.0.0
+
+info:
+  title: KVideo API
+  version: 1.0.0
+  description: API quản lý models và videos
+
+servers:
+  - url: http://localhost:3000
+
+paths:
+
+  /models:
+    get:
+      summary: Get list models
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+          example: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          example: 25
+        - in: query
+          name: search
+          schema:
+            type: string
+          example: "000"
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        200:
+          description: List models
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelListResponse'
+
+  /models/{name}:
+    get:
+      summary: Get model detail
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          example: "000but"
+      responses:
+        200:
+          description: Model detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+
+  /models/{name}/videos:
+    get:
+      summary: Get videos by model (pagination)
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+          example: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          example: 25
+      responses:
+        200:
+          description: List videos by model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoListResponse'
+
+  /models/{name}/videos/cursor:
+    get:
+      summary: Get videos by model (cursor pagination)
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          example: 25
+      responses:
+        200:
+          description: Cursor pagination videos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nextCursor:
+                    type: integer
+                    nullable: true
+                  hasMore:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Media'
+
+  /videos:
+    get:
+      summary: Get videos
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: model
+          schema:
+            type: string
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        200:
+          description: List videos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoListResponse'
+
+  /search:
+    get:
+      summary: Search models and videos
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          example: "000"
+        - in: query
+          name: pageModels
+          schema:
+            type: integer
+        - in: query
+          name: limitModels
+          schema:
+            type: integer
+        - in: query
+          name: pageVideos
+          schema:
+            type: integer
+        - in: query
+          name: limitVideos
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Search result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  models:
+                    $ref: '#/components/schemas/ModelListResponse'
+                  videos:
+                    $ref: '#/components/schemas/VideoListResponse'
+
+components:
+
+  schemas:
+
+    Model:
+      type: object
+      properties:
+        id:
+          type: integer
+        vers:
+          type: integer
+        name:
+          type: string
+        link:
+          type: string
+        avatar:
+          type: string
+
+    Media:
+      type: object
+      properties:
+        id:
+          type: integer
+        link:
+          type: string
+        model:
+          type: string
+        title:
+          type: string
+        img:
+          type: string
+        duration:
+          type: string
+        code:
+          type: string
+        created_date:
+          type: string
+
+    ModelListResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Model'
+
+    VideoListResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Media'
