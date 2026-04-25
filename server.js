@@ -17,7 +17,7 @@ let ACTORS = [];
 function loadData() {
   try {
     const raw = fs.readFileSync(FILE_PATH, "utf-8");
-    ACTORS = JSON.parse(raw).map(a => ({
+    ACTORS = JSON.parse(raw)?.data.map(a => ({
       ...a,
       titleLower: a.title.toLowerCase()
     }));
@@ -39,7 +39,7 @@ fs.watchFile(FILE_PATH, () => {
 app.get("/actors", (req, res) => {
   let {
     page = 1,
-    limit = 20,
+    limit = 25,
     search = "",
     sort = "asc", // asc | desc
   } = req.query;
