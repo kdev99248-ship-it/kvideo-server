@@ -199,46 +199,50 @@ app.get("/videos", async (req, res) => {
   }
 });
 
-app.get("/models/:name/videos", async (req, res) => {
-  const { name } = req.params;
+  // Thay thế route /models/:name/videos hiện tại bằng version này
+  app.get("/models/:name/videos", async (req, res) => {                                                                                                                                                 let { page = 1, limit = 20, q = '', sort = 'desc' } = req.query;
+    const { name } = req.params;                                                                                                                                                                                                                                                                                                                                                                      
+    page  = Math.max(parseInt(page)  || 1,  1);
+    limit = Math.min(parseInt(limit) || 20, 100);
+    const offset  = (page - 1) * limit;
+    const sortDir = sort === 'asc' ? 'ASC' : 'DESC';  // whitelist — tránh SQL injection
+    const search  = `%${q.trim()}%`;
 
-  let { page = 1, limit = 25 } = req.query;
+    try {
+      // ── Nếu medias dùng model_id (FK) ────────────────────────────────────────
+      const [[{ total }]] = await pool.query(
+        `SELECT COUNT(*) AS total
+         FROM medias m
+         INNER JOIN models mo ON m.model_id = mo.id
+         WHERE mo.name = ? AND m.title LIKE ?`,
+        [name, search]
+      );
 
-  page = Math.max(parseInt(page) || 1, 1);
-  limit = Math.min(parseInt(limit) || 25, 100);
+      const [data] = await pool.query(
+        `SELECT m.*
+         FROM medias m
+         INNER JOIN models mo ON m.model_id = mo.id
+         WHERE mo.name = ? AND m.title LIKE ?
+         ORDER BY m.id ${sortDir}
+         LIMIT ? OFFSET ?`,
+        [name, search, limit, offset]
+      );
 
-  const offset = (page - 1) * limit;
+      // ── Nếu medias dùng model_name trực tiếp, thay bằng: ─────────────────────
+      // WHERE m.model_name = ? AND m.title LIKE ?   (không cần JOIN)
 
-  try {
-    // total
-    const [[{ total }]] = await pool.query(
-      `SELECT COUNT(*) as total FROM medias WHERE model = ?`,
-      [name]
-    );
+      const totalPages = Math.ceil(total / limit);
+      res.json({
+        page, limit, total, totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+        data,
+      });
 
-    // data
-    const [rows] = await pool.query(
-      `SELECT * FROM medias
-       WHERE model = ?
-       ORDER BY id DESC
-       LIMIT ? OFFSET ?`,
-      [name, limit, offset]
-    );
-
-    res.json({
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      hasNext: page * limit < total,
-      hasPrev: page > 1,
-      data: rows
-    });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
 app.get("/models/:name", async (req, res) => {
   const { name } = req.params;
