@@ -199,37 +199,51 @@ app.get("/videos", async (req, res) => {
   }
 });
 
-  // Thay thế route /models/:name/videos hiện tại bằng version này
-  app.get("/models/:name/videos", async (req, res) => {                                                                                                                                                 let { page = 1, limit = 20, q = '', sort = 'desc' } = req.query;
-    const { name } = req.params;                                                                                                                                                                                                                                                                                                                                                                      
-    page  = Math.max(parseInt(page)  || 1,  1);
-    limit = Math.min(parseInt(limit) || 20, 100);
+  app.get("/models/:name/videos", async (req, res) => {                                                                                                                                             
+    let { page = 1, limit = 20, q = '', sort = 'desc' } = req.query;
+    const { name } = req.params;                                                                                                                                                                                                                                                                                                                                                                        
+    page    = Math.max(parseInt(page)  || 1,  1);                                                                                                                                                       limit   = Math.min(parseInt(limit) || 20, 100);         
     const offset  = (page - 1) * limit;
-    const sortDir = sort === 'asc' ? 'ASC' : 'DESC';  // whitelist — tránh SQL injection
-    const search  = `%${q.trim()}%`;
+    const sortDir = sort === 'asc' ? 'ASC' : 'DESC';
+    const search  = q.trim();
 
     try {
-      // ── Nếu medias dùng model_id (FK) ────────────────────────────────────────
-      const [[{ total }]] = await pool.query(
-        `SELECT COUNT(*) AS total
-         FROM medias m
-         INNER JOIN models mo ON m.model_id = mo.id
-         WHERE mo.name = ? AND m.title LIKE ?`,
-        [name, search]
-      );
+      let total, data;
 
-      const [data] = await pool.query(
-        `SELECT m.*
-         FROM medias m
-         INNER JOIN models mo ON m.model_id = mo.id
-         WHERE mo.name = ? AND m.title LIKE ?
-         ORDER BY m.id ${sortDir}
-         LIMIT ? OFFSET ?`,
-        [name, search, limit, offset]
-      );
+      if (search) {
+        const like = `%${search}%`;
 
-      // ── Nếu medias dùng model_name trực tiếp, thay bằng: ─────────────────────
-      // WHERE m.model_name = ? AND m.title LIKE ?   (không cần JOIN)
+        [[{ total }]] = await pool.query(
+          `SELECT COUNT(*) AS total
+           FROM medias
+           WHERE model = ? AND title LIKE ?`,
+          [name, like]
+        );
+        [data] = await pool.query(
+          `SELECT id, title, img, duration, code, created_date, link
+           FROM medias
+           WHERE model = ? AND title LIKE ?
+           ORDER BY created_date ${sortDir}
+           LIMIT ? OFFSET ?`,
+          [name, like, limit, offset]
+        );
+
+      } else {
+        [[{ total }]] = await pool.query(
+          `SELECT COUNT(*) AS total
+           FROM medias
+           WHERE model = ?`,
+          [name]
+        );
+        [data] = await pool.query(
+          `SELECT id, title, img, duration, code, created_date, link
+           FROM medias
+           WHERE model = ?
+           ORDER BY created_date ${sortDir}
+           LIMIT ? OFFSET ?`,
+          [name, limit, offset]
+        );
+      }
 
       const totalPages = Math.ceil(total / limit);
       res.json({
@@ -243,7 +257,6 @@ app.get("/videos", async (req, res) => {
       res.status(500).json({ error: err.message });
     }
   });
-
 app.get("/models/:name", async (req, res) => {
   const { name } = req.params;
 
